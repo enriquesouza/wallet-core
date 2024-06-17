@@ -38,6 +38,12 @@ TW::Data Entry::preImageHashes([[maybe_unused]] TWCoinType coin, const Data& txI
         });
 }
 
+void Entry::signPreimage([[maybe_unused]] TWCoinType coin, const Data& txInputData, Data& preImage, Data& preImageHash) const {
+    auto input = Proto::SigningInput();
+    input.ParseFromArray(txInputData.data(), (int)txInputData.size());
+    Signer::signPreimage(input, preImage, preImageHash);
+}
+
 void Entry::compile([[maybe_unused]] TWCoinType coin, const Data& txInputData, const std::vector<Data>& signatures, const std::vector<PublicKey>& publicKeys, Data& dataOut) const {
     dataOut = txCompilerTemplate<Proto::SigningInput, TxCompiler::Proto::PreSigningOutput>(
         txInputData, [&](const auto& input, auto& output) {
@@ -59,9 +65,9 @@ void Entry::compile([[maybe_unused]] TWCoinType coin, const Data& txInputData, c
                 externalSignatures.push_back(std::make_pair(signatures[i], publicKeys[i].bytes));
             }
 
-            // Adjust this line to properly handle the signing with external signatures
-            auto signedOutput = Signer::sign(input);
-            output.set_data(signedOutput.encoded().data(), signedOutput.encoded().size());
+            // Since signing is done externally, we simply prepare the pre-image data for external signing
+            auto preImage = Signer::signaturePreimage(input);
+            output.set_data(preImage.data(), preImage.size());
         });
 }
 

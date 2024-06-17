@@ -27,8 +27,11 @@ public:
     /// Signs a Proto::SigningInput transaction
     static Proto::SigningOutput sign(const Proto::SigningInput& input) noexcept;
 
-    /// Creates a pre-image for signing
+    /// Generates a pre-image for signing
     static Data signaturePreimage(const Proto::SigningInput& input);
+
+    /// Generates a pre-image and returns the hash and pre-image data for signing
+    static void signPreimage(const Proto::SigningInput& input, Data& preImage, Data& preImageHash);
 
 private:
     static void appendTransferToPreimage(const Proto::Transfer& transfer, Data& preImage);

@@ -124,7 +124,12 @@ Data Signer::signaturePreimage(const Proto::SigningInput& input) {
     default:
         break;
     }
-    return hash(preImage);
+    return preImage;
+}
+
+void Signer::signPreimage(const Proto::SigningInput& input, Data& preImage, Data& preImageHash) {
+    preImage = signaturePreimage(input);
+    preImageHash = hash(preImage);
 }
 
 void Signer::appendTransferToPreimage(const Proto::Transfer& transfer, Data& preImage) {

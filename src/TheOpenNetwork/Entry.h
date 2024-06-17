@@ -16,6 +16,7 @@ public:
     void sign(TWCoinType coin, const Data& dataIn, Data& dataOut) const;
     Data preImageHashes(TWCoinType coin, const Data& txInputData) const;
     void compile(TWCoinType coin, const Data& txInputData, const std::vector<Data>& signatures, const std::vector<PublicKey>& publicKeys, Data& dataOut) const;
+    void signPreimage(TWCoinType coin, const Data& txInputData, Data& preImage, Data& preImageHash) const;
 };
 
 } // namespace TW::TheOpenNetwork
