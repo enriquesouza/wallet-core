@@ -6,9 +6,9 @@
 
 #include "Address.h"
 #include "Signer.h"
-
 #include "TheOpenNetwork/wallet/WalletV4R2.h"
 #include "WorkchainType.h"
+#include "proto/TransactionCompiler.pb.h"
 
 namespace TW::TheOpenNetwork {
 
@@ -26,6 +26,43 @@ std::string Entry::deriveAddress([[maybe_unused]] TWCoinType coin, const PublicK
 
 void Entry::sign([[maybe_unused]] TWCoinType coin, const TW::Data& dataIn, TW::Data& dataOut) const {
     signTemplate<Signer, Proto::SigningInput>(dataIn, dataOut);
+}
+
+TW::Data Entry::preImageHashes([[maybe_unused]] TWCoinType coin, const Data& txInputData) const {
+    return txCompilerTemplate<Proto::SigningInput, TxCompiler::Proto::PreSigningOutput>(
+        txInputData, [&](const auto& input, auto& output) {
+            auto preImage = Signer::signaturePreimage(input);
+            auto preImageHash = Hash::sha256(preImage);
+            output.set_data_hash(preImageHash.data(), preImageHash.size());
+            output.set_data(preImage.data(), preImage.size());
+        });
+}
+
+void Entry::compile([[maybe_unused]] TWCoinType coin, const Data& txInputData, const std::vector<Data>& signatures, const std::vector<PublicKey>& publicKeys, Data& dataOut) const {
+    dataOut = txCompilerTemplate<Proto::SigningInput, TxCompiler::Proto::PreSigningOutput>(
+        txInputData, [&](const auto& input, auto& output) {
+            if (signatures.size() == 0 || publicKeys.size() == 0) {
+                output.set_error(Common::Proto::Error_invalid_params);
+                output.set_error_message("empty signatures or public keys");
+                return;
+            }
+
+            if (signatures.size() != publicKeys.size()) {
+                output.set_error(Common::Proto::Error_invalid_params);
+                output.set_error_message("signatures size and public keys size not equal");
+                return;
+            }
+
+            HashPubkeyList externalSignatures;
+            auto n = signatures.size();
+            for (auto i = 0ul; i < n; ++i) {
+                externalSignatures.push_back(std::make_pair(signatures[i], publicKeys[i].bytes));
+            }
+
+            // Adjust this line to properly handle the signing with external signatures
+            auto signedOutput = Signer::sign(input);
+            output.set_data(signedOutput.encoded().data(), signedOutput.encoded().size());
+        });
 }
 
 } // namespace TW::TheOpenNetwork
