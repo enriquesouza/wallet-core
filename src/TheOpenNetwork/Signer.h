@@ -21,11 +21,20 @@ public:
     /// Creates a signed transfer message
     static Data createTransferMessage(std::shared_ptr<Wallet> wallet, const PrivateKey& privateKey, const Proto::Transfer& transfer);
 
+    /// Creates a transfer message preimage for TSS
+    static Data createTransferMessageForTSS(std::shared_ptr<Wallet> wallet, const Proto::Transfer& transfer);
+
     /// Creates a signed jetton transfer message
     static Data createJettonTransferMessage(std::shared_ptr<Wallet> wallet, const PrivateKey& privateKey, const Proto::JettonTransfer& transfer);
 
-    /// Signs a Proto::SigningInput transaction
+    /// Creates a jetton transfer message preimage for TSS
+    static Data createJettonTransferMessageForTSS(std::shared_ptr<Wallet> wallet, const Proto::JettonTransfer& jettonTransfer);
+
+    /// Signs a Proto::SigningInput transaction with a private key
     static Proto::SigningOutput sign(const Proto::SigningInput& input) noexcept;
+
+    /// Signs a Proto::SigningInput transaction with TSS signature
+    static Proto::SigningOutput sign(const Proto::SigningInput& input, const Data& tssSignature, const PublicKey& fromPublicKey) noexcept;
 
     /// Generates a pre-image for signing
     static Data signaturePreimage(const Proto::SigningInput& input);

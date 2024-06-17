@@ -35,8 +35,9 @@ public:
         uint32_t sequence_number,
         uint8_t mode,
         uint32_t expireAt = 0,
-        const std::string& comment = ""
-    ) const;
+        const std::string& comment = "") const;
+    Cell::Ref createSigningMessageForTSS(const Address& dest, uint64_t amount, uint32_t sequence_number, uint8_t mode, uint32_t expireAt, const std::string& comment) const;
+    Cell::Ref createQueryMessageWithSignature(const Data& signature, const Address& dest, uint64_t amount, uint32_t sequence_number, uint8_t mode, const Cell::Ref& queryPayload, uint32_t expireAt) const;
 
     [[nodiscard]] Cell::Ref createQueryMessage(
         const PrivateKey& privateKey,

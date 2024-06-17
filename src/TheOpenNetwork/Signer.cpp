@@ -30,6 +30,20 @@ Data Signer::createTransferMessage(std::shared_ptr<Wallet> wallet, const Private
     return result;
 }
 
+Data Signer::createTransferMessageForTSS(std::shared_ptr<Wallet> wallet, const Proto::Transfer& transfer) {
+    const auto msg = wallet->createSigningMessageForTSS(
+        Address(transfer.dest(), transfer.bounceable()),
+        transfer.amount(),
+        transfer.sequence_number(),
+        static_cast<uint8_t>(transfer.mode()),
+        transfer.expire_at(),
+        transfer.comment());
+
+    Data result{};
+    msg->serialize(result);
+    return result;
+}
+
 Data Signer::createJettonTransferMessage(std::shared_ptr<Wallet> wallet, const PrivateKey& privateKey, const Proto::JettonTransfer& jettonTransfer) {
     const Proto::Transfer& transferData = jettonTransfer.transfer();
 
@@ -55,56 +69,154 @@ Data Signer::createJettonTransferMessage(std::shared_ptr<Wallet> wallet, const P
     return result;
 }
 
-Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
-    const auto& privateKey = PrivateKey(input.private_key());
-    const auto& publicKey = privateKey.getPublicKey(TWPublicKeyTypeED25519);
+Data Signer::createJettonTransferMessageForTSS(std::shared_ptr<Wallet> wallet, const Proto::JettonTransfer& jettonTransfer) {
+    const Proto::Transfer& transferData = jettonTransfer.transfer();
 
+    const auto payload = jettonTransferPayload(
+        Address(jettonTransfer.response_address()),
+        Address(jettonTransfer.to_owner()),
+        jettonTransfer.jetton_amount(),
+        jettonTransfer.forward_amount(),
+        transferData.comment(),
+        jettonTransfer.query_id());
+
+    const auto msg = wallet->createSigningMessageForTSS(
+        Address(transferData.dest(), transferData.bounceable()),
+        transferData.amount(),
+        transferData.sequence_number(),
+        static_cast<uint8_t>(transferData.mode()),
+        transferData.expire_at(),
+        std::string{}); // Empty comment for payload
+
+    Data result{};
+    msg->serialize(result);
+    return result;
+}
+
+Proto::SigningOutput Signer::sign(const Proto::SigningInput& input) noexcept {
     auto protoOutput = Proto::SigningOutput();
 
-    switch (input.action_oneof_case()) {
-    case Proto::SigningInput::ActionOneofCase::kTransfer: {
-        const auto& transfer = input.transfer();
+    if (!input.private_key().empty()) {
+        const auto& privateKey = PrivateKey(input.private_key());
+        const auto& publicKey = privateKey.getPublicKey(TWPublicKeyTypeED25519);
 
-        try {
-            switch (transfer.wallet_version()) {
-            case Proto::WalletVersion::WALLET_V4_R2: {
-                const int8_t workchainId = WorkchainType::Basechain;
-                auto wallet = std::make_shared<WalletV4R2>(publicKey, workchainId);
-                const auto& transferMessage = Signer::createTransferMessage(wallet, privateKey, transfer);
-                protoOutput.set_encoded(TW::Base64::encode(transferMessage));
-                break;
+        switch (input.action_oneof_case()) {
+        case Proto::SigningInput::ActionOneofCase::kTransfer: {
+            const auto& transfer = input.transfer();
+            try {
+                switch (transfer.wallet_version()) {
+                case Proto::WalletVersion::WALLET_V4_R2: {
+                    const int8_t workchainId = WorkchainType::Basechain;
+                    auto wallet = std::make_shared<WalletV4R2>(publicKey, workchainId);
+                    const auto& transferMessage = Signer::createTransferMessage(wallet, privateKey, transfer);
+                    protoOutput.set_encoded(TW::Base64::encode(transferMessage));
+                    break;
+                }
+                default:
+                    protoOutput.set_error(Common::Proto::Error_invalid_params);
+                    protoOutput.set_error_message("Unsupported wallet version");
+                    break;
+                }
+            } catch (...) {
+                protoOutput.set_error(Common::Proto::Error_general);
             }
-            default:
-                protoOutput.set_error(Common::Proto::Error_invalid_params);
-                protoOutput.set_error_message("Unsupported wallet version");
-                break;
-            }
-        } catch (...) {
+            break;
         }
-        break;
-    }
-    case Proto::SigningInput::ActionOneofCase::kJettonTransfer: {
-        const auto& jettonTransfer = input.jetton_transfer();
-        try {
-            switch (jettonTransfer.transfer().wallet_version()) {
-            case Proto::WalletVersion::WALLET_V4_R2: {
-                const int8_t workchainId = WorkchainType::Basechain;
-                auto wallet = std::make_shared<WalletV4R2>(publicKey, workchainId);
-                const auto& transferMessage = Signer::createJettonTransferMessage(wallet, privateKey, jettonTransfer);
-                protoOutput.set_encoded(TW::Base64::encode(transferMessage));
-                break;
+        case Proto::SigningInput::ActionOneofCase::kJettonTransfer: {
+            const auto& jettonTransfer = input.jetton_transfer();
+            try {
+                switch (jettonTransfer.transfer().wallet_version()) {
+                case Proto::WalletVersion::WALLET_V4_R2: {
+                    const int8_t workchainId = WorkchainType::Basechain;
+                    auto wallet = std::make_shared<WalletV4R2>(publicKey, workchainId);
+                    const auto& transferMessage = Signer::createJettonTransferMessage(wallet, privateKey, jettonTransfer);
+                    protoOutput.set_encoded(TW::Base64::encode(transferMessage));
+                    break;
+                }
+                default:
+                    protoOutput.set_error(Common::Proto::Error_invalid_params);
+                    protoOutput.set_error_message("Unsupported wallet version");
+                    break;
+                }
+            } catch (...) {
+                protoOutput.set_error(Common::Proto::Error_general);
             }
-            default:
-                protoOutput.set_error(Common::Proto::Error_invalid_params);
-                protoOutput.set_error_message("Unsupported wallet version");
-                break;
-            }
-        } catch (...) {
+            break;
         }
+        default:
+            protoOutput.set_error(Common::Proto::Error_invalid_params);
+            protoOutput.set_error_message("Unsupported action");
+            break;
+        }
+    } else if (!input.public_key().empty()) {
+        protoOutput.set_error(Common::Proto::Error_invalid_params);
+        protoOutput.set_error_message("TSS signing requires a signature");
+    } else {
+        protoOutput.set_error(Common::Proto::Error_invalid_params);
+        protoOutput.set_error_message("Missing private key or public key");
     }
-    default:
-        break;
+
+    return protoOutput;
+}
+
+Proto::SigningOutput Signer::sign(const Proto::SigningInput& input, const Data& tssSignature, const PublicKey& fromPublicKey) noexcept {
+    auto protoOutput = Proto::SigningOutput();
+
+    try {
+        switch (input.action_oneof_case()) {
+        case Proto::SigningInput::ActionOneofCase::kTransfer: {
+            const auto& transfer = input.transfer();
+            const int8_t workchainId = WorkchainType::Basechain;
+            auto wallet = std::make_shared<WalletV4R2>(fromPublicKey, workchainId);
+
+            const auto msg = wallet->createQueryMessageWithSignature(
+                tssSignature,
+                Address(transfer.dest(), transfer.bounceable()),
+                transfer.amount(),
+                transfer.sequence_number(),
+                static_cast<uint8_t>(transfer.mode()),
+                nullptr, // Assuming payload is null
+                transfer.expire_at());
+            Data result{};
+            msg->serialize(result);
+            protoOutput.set_encoded(TW::Base64::encode(result));
+            break;
+        }
+        case Proto::SigningInput::ActionOneofCase::kJettonTransfer: {
+            const auto& jettonTransfer = input.jetton_transfer();
+            const int8_t workchainId = WorkchainType::Basechain;
+            auto wallet = std::make_shared<WalletV4R2>(fromPublicKey, workchainId);
+
+            const Proto::Transfer& transferData = jettonTransfer.transfer();
+            const auto payload = jettonTransferPayload(
+                Address(jettonTransfer.response_address()),
+                Address(jettonTransfer.to_owner()),
+                jettonTransfer.jetton_amount(),
+                jettonTransfer.forward_amount(),
+                transferData.comment(),
+                jettonTransfer.query_id());
+            const auto msg = wallet->createQueryMessageWithSignature(
+                tssSignature,
+                Address(transferData.dest(), transferData.bounceable()),
+                transferData.amount(),
+                transferData.sequence_number(),
+                static_cast<uint8_t>(transferData.mode()),
+                payload,
+                transferData.expire_at());
+            Data result{};
+            msg->serialize(result);
+            protoOutput.set_encoded(TW::Base64::encode(result));
+            break;
+        }
+        default:
+            protoOutput.set_error(Common::Proto::Error_invalid_params);
+            protoOutput.set_error_message("Unsupported action");
+            break;
+        }
+    } catch (...) {
+        protoOutput.set_error(Common::Proto::Error_general);
     }
+
     return protoOutput;
 }
 

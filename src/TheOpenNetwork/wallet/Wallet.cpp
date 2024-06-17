@@ -83,7 +83,6 @@ Cell::Ref Wallet::createQueryMessage(
     return transferMessage.intoCell();
 }
 
-
 Cell::Ref Wallet::createTransferMessage(
     const PrivateKey& privateKey,
     const Address& dest,
@@ -94,13 +93,60 @@ Cell::Ref Wallet::createTransferMessage(
     const std::string& comment
 ) const {
     CellBuilder bodyBuilder;
-        if (!comment.empty()) {
-            const auto& data = Data(comment.begin(), comment.end());
-            bodyBuilder.appendU32(0);
-            bodyBuilder.appendRaw(data, static_cast<uint16_t>(data.size()) * 8);
+    if (!comment.empty()) {
+        const auto& data = Data(comment.begin(), comment.end());
+        bodyBuilder.appendU32(0);
+        bodyBuilder.appendRaw(data, static_cast<uint16_t>(data.size()) * 8);
     }
     return createQueryMessage(privateKey, dest, amount, sequence_number, mode, bodyBuilder.intoCell(), expireAt);
 }
 
+// New method to create signing message for TSS without signing
+Cell::Ref Wallet::createSigningMessageForTSS(
+    const Address& dest,
+    uint64_t amount,
+    uint32_t sequence_number,
+    uint8_t mode,
+    uint32_t expireAt,
+    const std::string& comment
+) const {
+    CellBuilder bodyBuilder;
+    if (!comment.empty()) {
+        const auto& data = Data(comment.begin(), comment.end());
+        bodyBuilder.appendU32(0);
+        bodyBuilder.appendRaw(data, static_cast<uint16_t>(data.size()) * 8);
+    }
+    return createSigningMessage(dest, amount, sequence_number, mode, bodyBuilder.intoCell(), expireAt);
+}
+
+// New method to create query message with external signature
+Cell::Ref Wallet::createQueryMessageWithSignature(
+    const Data& signature,
+    const Address& dest,
+    uint64_t amount,
+    uint32_t sequence_number,
+    uint8_t mode,
+    const Cell::Ref& queryPayload,
+    uint32_t expireAt
+) const {
+    const auto transferMessageHeader = std::make_shared<CommonTON::ExternalInboundMessageHeader>(this->getAddress().addressData);
+    Message transferMessage = Message(MessageData(transferMessageHeader));
+    if (sequence_number == 0) {
+        const auto stateInit = this->createStateInit();
+        transferMessage.setStateInit(stateInit);
+    }
+
+    { // Set body of transfer message
+        CellBuilder bodyBuilder;
+        const Cell::Ref signingMessage = this->createSigningMessage(dest, amount, sequence_number, mode, queryPayload, expireAt);
+
+        bodyBuilder.appendRaw(signature, static_cast<uint16_t>(signature.size()) * 8);
+        bodyBuilder.appendCellSlice(CellSlice(signingMessage.get()));
+
+        transferMessage.setBody(bodyBuilder.intoCell());
+    }
+
+    return transferMessage.intoCell();
+}
 
 } // namespace TW::TheOpenNetwork
