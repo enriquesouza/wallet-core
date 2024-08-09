@@ -212,6 +212,7 @@ where
             MessageEnum::auth_grant(ref grant) => Self::auth_grant_msg_from_proto(coin, grant),
             MessageEnum::auth_revoke(ref revoke) => Self::auth_revoke_msg_from_proto(coin, revoke),
             MessageEnum::msg_vote(ref vote) => Self::vote_msg_from_proto(coin, vote),
+            MessageEnum::msg_proposal(ref proposal) => Self::proposal_msg_from_proto(coin, proposal),
             MessageEnum::msg_stride_liquid_staking_stake(ref stake) => {
                 Self::stride_stake_msg_from_proto(coin, stake)
             },

@@ -358,6 +358,7 @@ message Message {
         MsgStrideLiquidStakingStake msg_stride_liquid_staking_stake = 21;
         MsgStrideLiquidStakingRedeem msg_stride_liquid_staking_redeem = 22;
         THORChainDeposit thorchain_deposit_message = 23;
+        MsgProposal msg_proposal = 24;
     }
 }
 
