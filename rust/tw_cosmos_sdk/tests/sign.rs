@@ -15,6 +15,7 @@ use tw_keypair::tw::PublicKeyType;
 use tw_proto::Common::Proto::SigningError;
 use tw_proto::Cosmos::Proto;
 use tw_proto::Cosmos::Proto::mod_Message::OneOfmessage_oneof as MessageEnum;
+use tw_proto::Cosmos::Proto::mod_MsgProposal::MsgProposalMessage;
 
 fn account_1037_private_key() -> Cow<'static, [u8]> {
     "80e81ea269e66a0a05b11236df7919fb7fbeedba87452d667489d7403a02f005"
@@ -391,6 +392,33 @@ fn test_vote_payload() {
         let actual = payload.to_proto().unwrap();
         assert_eq!(actual.value.to_hex(), expected);
     }
+}
+
+// ENRIQUE
+#[test]
+fn test_proposal_payload() {
+    let coin = TestCoinContext::default()
+        .with_public_key_type(PublicKeyType::Secp256k1)
+        .with_hrp("cosmos");
+
+    let mut message = MsgProposalMessage {
+        authority: "cosmos1mry47pkga5tdswtluy0m8teslpalkdq07pswu4".into(),
+        type_pb: "type".into(),
+        content: Some(
+            Proto::mod_MsgProposal::mod_MsgProposalMessage::MsgProposalMessageContent {
+                type_pb: "type".into(),
+                title: "title".into(),
+                description: "title".into(),
+            },
+        ),
+    };
+
+    let mut proposal_msg = Proto::MsgProposal {
+        title: "title".into(),
+        deposit: "1000uat".into(),
+        summary: "summary".into(),
+        messages: vec![],
+    };
 }
 
 #[test]

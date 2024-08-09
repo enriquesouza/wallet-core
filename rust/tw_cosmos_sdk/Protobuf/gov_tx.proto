@@ -22,3 +22,23 @@ message MsgVote {
   string     voter       = 2;
   VoteOption option      = 3;
 }
+
+message MsgProposal {
+    string title = 1;
+    string deposit = 2;
+    string summary = 3;
+    repeated MsgProposalMessage messages = 4;
+
+    message MsgProposalMessage {
+        string type = 1; // Renamed from @type to type
+        MsgProposalMessageContent content = 2;
+        string authority = 3;
+
+        message MsgProposalMessageContent {
+            string type = 1; // Renamed from @type to type
+            string title = 2;
+            string description = 3;
+        }
+    }
+
+}
