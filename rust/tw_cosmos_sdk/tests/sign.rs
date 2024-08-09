@@ -3,7 +3,6 @@
 // Copyright © 2017 Trust Wallet.
 
 use std::borrow::Cow;
-use tw_coin_entry::error::prelude::IntoTWError;
 use tw_coin_entry::test_utils::test_context::TestCoinContext;
 use tw_cosmos_sdk::context::StandardCosmosContext;
 use tw_cosmos_sdk::modules::tx_builder::TxBuilder;
@@ -395,7 +394,6 @@ fn test_vote_payload() {
     }
 }
 
-// ENRIQUE
 #[test]
 fn test_proposal_payload() {
     let coin = TestCoinContext::default()
