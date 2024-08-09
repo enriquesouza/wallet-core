@@ -12,6 +12,7 @@ pub mod cosmos_auth_message;
 pub mod cosmos_bank_message;
 pub mod cosmos_generic_message;
 pub mod cosmos_gov_message;
+pub mod cosmos_proposal_message;
 pub mod cosmos_staking_message;
 pub mod ibc_message;
 pub mod stride_message;

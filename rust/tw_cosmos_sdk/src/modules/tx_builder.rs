@@ -11,6 +11,7 @@ use crate::transaction::message::{CosmosMessage, CosmosMessageBox};
 use crate::transaction::{Coin, Fee, SignMode, SignerInfo, TxBody, UnsignedTransaction};
 use std::marker::PhantomData;
 use std::str::FromStr;
+use tw_bech32_address::Bech32Address;
 use tw_coin_entry::coin_context::CoinContext;
 use tw_coin_entry::error::prelude::*;
 use tw_hash::hasher::Hasher;
@@ -681,6 +682,40 @@ where
                 .context("Invalid voter address")?,
             option,
         };
+        Ok(msg.into_boxed())
+    }
+
+    pub fn proposal_msg_from_proto(
+        _coin: &dyn CoinContext,
+        proposal: &Proto::MsgProposal<'_>,
+    ) -> SigningResult<CosmosMessageBox> {
+        use crate::transaction::message::cosmos_proposal_message::{
+            MsgProposal, MsgProposalMessage, MsgProposalMessageContent,
+        };
+        use std::str::FromStr;
+
+        let msg = MsgProposal {
+            title: proposal.title.to_string(),
+            deposit: proposal.deposit.to_string(),
+            summary: proposal.summary.to_string(),
+            messages: proposal
+                .messages
+                .iter()
+                .map(|msg| {
+                    let content = msg.content.as_ref().unwrap();
+                    MsgProposalMessage {
+                        authority: Address::from_str(&msg.authority).unwrap(),
+                        type_pb: msg.type_pb.to_string(),
+                        content: MsgProposalMessageContent {
+                            type_pb: content.type_pb.to_string(),
+                            title: content.title.to_string(),
+                            description: content.description.to_string(),
+                        },
+                    }
+                })
+                .collect(),
+        };
+
         Ok(msg.into_boxed())
     }
 

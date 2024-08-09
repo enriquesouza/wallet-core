@@ -3,6 +3,7 @@
 // Copyright © 2017 Trust Wallet.
 
 use std::borrow::Cow;
+use tw_coin_entry::error::prelude::IntoTWError;
 use tw_coin_entry::test_utils::test_context::TestCoinContext;
 use tw_cosmos_sdk::context::StandardCosmosContext;
 use tw_cosmos_sdk::modules::tx_builder::TxBuilder;
@@ -398,27 +399,36 @@ fn test_vote_payload() {
 #[test]
 fn test_proposal_payload() {
     let coin = TestCoinContext::default()
-        .with_public_key_type(PublicKeyType::Secp256k1)
-        .with_hrp("cosmos");
+       .with_public_key_type(PublicKeyType::Secp256k1)
+       .with_hrp("cosmos");
 
-    let mut message = MsgProposalMessage {
-        authority: "cosmos1mry47pkga5tdswtluy0m8teslpalkdq07pswu4".into(),
-        type_pb: "type".into(),
+    let message = MsgProposalMessage {
+        authority: "dydx10d07y265gmmuvt4z0w9aw880jnsr700jnmapky".into(),
+        type_pb: "/cosmos.gov.v1.MsgExecLegacyContent".into(),
         content: Some(
             Proto::mod_MsgProposal::mod_MsgProposalMessage::MsgProposalMessageContent {
-                type_pb: "type".into(),
-                title: "title".into(),
-                description: "title".into(),
+                type_pb: "/cosmos.gov.v1beta1.TextProposal".into(),
+                title: "Title of TextProposal message".into(),
+                description: "Description of TextProposal message".into(),
             },
         ),
     };
 
-    let mut proposal_msg = Proto::MsgProposal {
-        title: "title".into(),
-        deposit: "1000uat".into(),
-        summary: "summary".into(),
-        messages: vec![],
+    let proposal_msg = Proto::MsgProposal {
+        title: "Title of test proposal".into(),
+        deposit: "2000000000000000000000adydx".into(),
+        summary: "Summary of the test proposal".into(),
+        messages: vec![message],
     };
+
+    let payload = TxBuilder::<StandardCosmosContext>::proposal_msg_from_proto(&coin, &proposal_msg).unwrap();
+
+    let actual = payload.to_proto().unwrap();
+
+    let hex = actual.value.to_hex();
+
+    println!("hex: {}", hex);
+
 }
 
 #[test]
